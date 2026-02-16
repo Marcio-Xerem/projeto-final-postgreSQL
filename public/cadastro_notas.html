@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastrar Notas - Carnaval</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Cadastrar Notas</h1>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="cadastro_notas.html">Cadastrar Notas</a></li>
+                <li><a href="relatorios.html">Relatórios</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <section class="formulario">
+                <h2>Preencha os Dados</h2>
+
+                <!-- Etapa 1: Selecionar Jurado e Escola -->
+                <div class="etapa">
+                    <h3>Etapa 1: Selecione a Escola e o Jurado</h3>
+
+                    <div id="aviso-duplicado" class="mensagem erro" style="display: none;">
+                        ⚠️ Este jurado já cadastrou notas para esta escola. Selecione outra combinação.
+                    </div>
+
+                    <!-- Escola ANTES -->
+                    <div class="form-group">
+                        <label for="escola">Escola:</label>
+                        <select id="escola" name="id_escola" required onchange="validarCombinacao()">
+                            <option value="">-- Selecione uma escola --</option>
+                        </select>
+                    </div>
+
+                    <!-- Jurados DEPOIS -->
+                    <div class="form-group">
+                        <label>Jurado:</label>
+                        <div id="container-jurados" class="container-jurados">
+                            <!-- As opções com fotos serão inseridas aqui via JavaScript -->
+                        </div>
+                        <select id="jurado" name="id_jurado" required onchange="validarCombinacao()"
+                            style="display: none;">
+                            <option value="">-- Selecione um jurado --</option>
+                        </select>
+                    </div>
+
+                    <div id="jurado-selecionado" class="jurado-selecionado" style="display: none;">
+                        <img id="foto-jurado-selecionado" src="" alt="Jurado" class="foto-jurado-grande">
+                        <h4 id="nome-jurado-selecionado"></h4>
+                    </div>
+
+                    <button type="button" class="btn-proxima" id="btnProxima" onclick="proximaEtapa()" disabled>Próximo
+                        →</button>
+                </div>
+
+                <!-- Etapa 2: Lançar Notas dos 4 Quesitos -->
+                <div class="etapa" id="etapa2" style="display: none;">
+                    <h3>Etapa 2: Lançar Notas dos Quesitos</h3>
+
+                    <div id="info-jurado-escola" class="info-destaque"></div>
+
+                    <form id="formNotas">
+                        <div class="notas-grid">
+                            <!-- Notas dos quesitos inseridas aqui via JavaScript -->
+                        </div>
+
+                        <div class="botoes-acao">
+                            <button type="button" class="btn-voltar" onclick="voltarEtapa()">← Voltar</button>
+                            <button type="submit" class="btn-primary">✅ Salvar Notas</button>
+                        </div>
+                    </form>
+
+                    <div id="mensagem" class="mensagem"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        async function carregarJurados() {
+            try {
+                const response = await fetch('/api/jurados-com-foto');
+                const jurados = await response.json();
+                const containerJurados = document.getElementById('container-jurados');
+                const selectJurado = document.getElementById('jurado');
+
+                containerJurados.innerHTML = '';
+                selectJurado.innerHTML = '<option value="">-- Selecione um jurado --</option>';
+
+                jurados.forEach(jurado => {
+                    const fotoSrc = jurado.foto_base64
+                        ? `data:image/jpeg;base64,${jurado.foto_base64}`
+                        : '/imagens/padrao.jpg';
+
+                    const opt = document.createElement('option');
+                    opt.value = jurado.id_jurado;
+                    opt.textContent = jurado.nome_jurado;
+                    selectJurado.appendChild(opt);
+
+                    const div = document.createElement('div');
+                    div.className = 'card-jurado';
+
+                    const img = document.createElement('img');
+                    img.src = fotoSrc;
+                    img.alt = jurado.nome_jurado;
+                    img.className = 'foto-jurado';
+
+                    const p = document.createElement('p');
+                    p.textContent = jurado.nome_jurado;
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn-selecionar-jurado';
+                    btn.textContent = 'Selecionar';
+                    btn.addEventListener('click', () => {
+                        selecionarJurado(jurado.id_jurado, jurado.nome_jurado, fotoSrc);
+                    });
+
+                    div.appendChild(img);
+                    div.appendChild(p);
+                    div.appendChild(btn);
+                    containerJurados.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar jurados:', error);
+            }
+        }
+
+        function selecionarJurado(idJurado, nomeJurado, fotoSrc) {
+            document.getElementById('jurado').value = idJurado;
+            document.getElementById('foto-jurado-selecionado').src = fotoSrc;
+            document.getElementById('nome-jurado-selecionado').textContent = nomeJurado;
+            document.getElementById('jurado-selecionado').style.display = 'block';
+            validarCombinacao();
+        }
+
+        async function carregarEscolas() {
+            try {
+                const response = await fetch('/api/escolas');
+                const escolas = await response.json();
+                const select = document.getElementById('escola');
+
+                escolas.forEach(escola => {
+                    const option = document.createElement('option');
+                    option.value = escola.id_escola;
+                    option.textContent = escola.nome_escola;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar escolas:', error);
+            }
+        }
+
+        async function carregarQuesitos() {
+            try {
+                const response = await fetch('/api/quesitos');
+                return await response.json();
+            } catch (error) {
+                console.error('Erro ao carregar quesitos:', error);
+                return [];
+            }
+        }
+
+        async function validarCombinacao() {
+            const idJurado = document.getElementById('jurado').value;
+            const idEscola = document.getElementById('escola').value;
+            const btnProxima = document.getElementById('btnProxima');
+            const avisDuplicado = document.getElementById('aviso-duplicado');
+
+            if (idJurado && idEscola) {
+                btnProxima.disabled = false;
+            } else {
+                btnProxima.disabled = true;
+                avisDuplicado.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/verificar-nota?id_jurado=${idJurado}&id_escola=${idEscola}`);
+                const resultado = await response.json();
+
+                if (resultado.existe) {
+                    avisDuplicado.style.display = 'block';
+                    btnProxima.disabled = true;
+                } else {
+                    avisDuplicado.style.display = 'none';
+                    btnProxima.disabled = false;
+                }
+            } catch (error) {
+                console.error('Erro ao validar combinação:', error);
+            }
+        }
+
+        async function proximaEtapa() {
+            const juradoSelect = document.getElementById('jurado');
+            const escolaSelect = document.getElementById('escola');
+
+            const idJurado = juradoSelect.value;
+            const idEscola = escolaSelect.value;
+            const nomeJurado = juradoSelect.options[juradoSelect.selectedIndex]?.text || '';
+            const nomeEscola = escolaSelect.options[escolaSelect.selectedIndex]?.text || '';
+
+            if (!idJurado || !idEscola) {
+                alert('⚠️ Selecione uma escola e um jurado!');
+                return;
+            }
+
+            document.getElementById('info-jurado-escola').innerHTML = `
+                <p><strong>Jurado:</strong> ${nomeJurado}</p>
+                <p><strong>Escola:</strong> ${nomeEscola}</p>
+            `;
+
+            const quesitos = await carregarQuesitos();
+            montarFormularioNotas(quesitos);
+
+            document.querySelector('.etapa').style.display = 'none';
+            document.getElementById('etapa2').style.display = 'block';
+            document.getElementById('etapa2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function montarFormularioNotas(quesitos) {
+            const grid = document.querySelector('.notas-grid');
+            grid.innerHTML = '';
+
+            quesitos.forEach(quesito => {
+                const div = document.createElement('div');
+                div.className = 'nota-item';
+                div.innerHTML = `
+                    <label for="nota_${quesito.id_quesito}">
+                        ${quesito.nome_quesito}
+                    </label>
+                    <input 
+                        type="number" 
+                        id="nota_${quesito.id_quesito}" 
+                        name="nota_${quesito.id_quesito}" 
+                        min="9.0" 
+                        max="10.0" 
+                        step="0.1" 
+                        required 
+                        placeholder="Ex: 9.5"
+                    >
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function voltarEtapa() {
+            document.getElementById('etapa2').style.display = 'none';
+            document.querySelector('.etapa').style.display = 'block';
+            document.querySelector('.etapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('mensagem').textContent = '';
+            document.getElementById('mensagem').className = 'mensagem';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const formNotas = document.getElementById('formNotas');
+
+            formNotas.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const idJurado = document.getElementById('jurado').value;
+                const idEscola = document.getElementById('escola').value;
+                const quesitos = await carregarQuesitos();
+
+                const notas = [];
+                let todasValidas = true;
+
+                quesitos.forEach(quesito => {
+                    const notaInput = document.getElementById(`nota_${quesito.id_quesito}`);
+                    const nota = parseFloat(notaInput.value);
+
+                    if (!nota || nota < 9.0 || nota > 10.0) {
+                        todasValidas = false;
+                        notaInput.classList.add('erro-campo');
+                    } else {
+                        notaInput.classList.remove('erro-campo');
+                        notas.push({
+                            id_escola: parseInt(idEscola),
+                            id_jurado: parseInt(idJurado),
+                            id_quesito: quesito.id_quesito,
+                            nota: nota
+                        });
+                    }
+                });
+
+                if (!todasValidas) {
+                    exibirMensagem('❌ Todas as notas devem estar entre 9.0 e 10.0', 'erro');
+                    return;
+                }
+
+                try {
+                    let sucessos = 0;
+                    let erros = 0;
+
+                    for (const nota of notas) {
+                        const response = await fetch('/api/notas', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(nota)
+                        });
+
+                        if (response.ok) {
+                            sucessos++;
+                        } else {
+                            erros++;
+                        }
+                    }
+
+                    if (erros === 0) {
+                        exibirMensagem(`✅ Todas as ${sucessos} notas foram salvas com sucesso!`, 'sucesso');
+
+                        setTimeout(() => {
+                            document.getElementById('formNotas').reset();
+                            voltarEtapa();
+                            document.getElementById('jurado').value = '';
+                            document.getElementById('escola').value = '';
+                            document.getElementById('btnProxima').disabled = true;
+                            document.getElementById('aviso-duplicado').style.display = 'none';
+                            document.getElementById('jurado-selecionado').style.display = 'none';
+                        }, 2000);
+                    } else {
+                        exibirMensagem(`⚠️ ${sucessos} notas salvas, ${erros} falharam`, 'erro');
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    exibirMensagem('❌ Erro ao salvar notas', 'erro');
+                }
+            });
+        });
+
+        function exibirMensagem(texto, tipo) {
+            const mensagem = document.getElementById('mensagem');
+            mensagem.textContent = texto;
+            mensagem.className = `mensagem ${tipo}`;
+        }
+
+        window.addEventListener('load', () => {
+            carregarJurados();
+            carregarEscolas();
+        });
+    </script>
+</body>
+
+</html>
