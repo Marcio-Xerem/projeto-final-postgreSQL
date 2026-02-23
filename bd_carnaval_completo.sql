@@ -180,55 +180,29 @@ ORDER BY
 
 -- VIEW 2: Nota Final de Cada Quesito (descarta menor nota e calcula média das 4 maiores)
 CREATE
-OR REPLACE VIEW vw_nota_final_quesito AS WITH notas_com_ranking AS (
-    SELECT
-        n.fk_id_escola,
-        e.nome_escola,
-        n.fk_id_quesito,
-        q.nome_quesito,
-        n.nota,
-        ROW_NUMBER() OVER (
-            PARTITION BY n.fk_id_escola,
-            n.fk_id_quesito
-            ORDER BY
-                n.nota ASC
-        ) as posicao,
-        COUNT(*) OVER (PARTITION BY n.fk_id_escola, n.fk_id_quesito) as total_notas
-    FROM
-        notas n
-        JOIN escolas e ON n.fk_id_escola = e.id_escola
-        JOIN quesitos q ON n.fk_id_quesito = q.id_quesito
-)
+OR REPLACE VIEW vw_nota_final_quesito AS
 SELECT
-    nome_escola,
-    nome_quesito,
+    e.nome_escola,
+    q.nome_quesito,
+    ROUND(MIN(n.nota), 1) AS menor_nota_descartada,
     ROUND(
-        MIN(
-            CASE
-                WHEN posicao = 1 THEN nota
-            END
-        ),
-        1
-    ) as menor_nota_descartada,
-    ROUND(
-        AVG(nota) FILTER (
-            WHERE
-                posicao > 1
-        ),
+        fn_calcular_nota_final(n.fk_id_escola, n.fk_id_quesito),
         3
-    ) as nota_final
+    ) AS nota_final
 FROM
-    notas_com_ranking
-WHERE
-    total_notas >= 5
+    notas n
+    JOIN escolas e ON e.id_escola = n.fk_id_escola
+    JOIN quesitos q ON q.id_quesito = n.fk_id_quesito
 GROUP BY
-    fk_id_escola,
-    nome_escola,
-    fk_id_quesito,
-    nome_quesito
+    n.fk_id_escola,
+    e.nome_escola,
+    n.fk_id_quesito,
+    q.nome_quesito
+HAVING
+    COUNT(*) >= 5
 ORDER BY
-    nome_escola,
-    nome_quesito;
+    e.nome_escola,
+    q.nome_quesito;
 
 -- VIEW 3: Pontuação Total de Cada Escola (soma das notas finais dos quesitos)
 CREATE

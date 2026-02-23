@@ -50,19 +50,32 @@
     </div>
 
     <script>
+        async function fetchJson(url) {
+            const response = await fetch(url);
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data?.erro || `HTTP ${response.status} em ${url}`);
+            }
+
+            return data;
+        }
+
+        function mostrarErro(msg) {
+            document.getElementById('resultado').innerHTML =
+                `<div class="resultado-relatorio"><p>❌ ${msg}</p></div>`;
+        }
+
         async function carregarNotasIndividuaisComFotos() {
             try {
-                const response = await fetch('/api/relatorio/notas-individuais');
-                const notas = await response.json();
+                const notas = await fetchJson('/api/relatorio/notas-individuais');
 
-                if (notas.length === 0) {
-                    document.getElementById('resultado').innerHTML =
-                        '<div class="resultado-relatorio"><p>❌ Nenhum dado disponível</p></div>';
+                if (!Array.isArray(notas) || notas.length === 0) {
+                    mostrarErro('Nenhum dado disponível');
                     return;
                 }
 
-                const juradosResponse = await fetch('/api/jurados-com-foto');
-                const jurados = await juradosResponse.json();
+                const jurados = await fetchJson('/api/jurados-com-foto');
                 const mapaJurados = {};
 
                 jurados.forEach(j => {
@@ -119,19 +132,16 @@
                 document.getElementById('resultado').innerHTML = html;
             } catch (error) {
                 console.error('Erro:', error);
-                document.getElementById('resultado').innerHTML =
-                    '<div class="resultado-relatorio"><p>❌ Erro ao carregar dados</p></div>';
+                mostrarErro(error.message || 'Erro ao carregar dados');
             }
         }
 
         async function carregarNotaFinalQuesito() {
             try {
-                const response = await fetch('/api/relatorio/nota-final-quesito');
-                const notas = await response.json();
+                const notas = await fetchJson('/api/relatorio/nota-final-quesito');
 
-                if (notas.length === 0) {
-                    document.getElementById('resultado').innerHTML =
-                        '<div class="resultado-relatorio"><p>❌ Nenhum dado disponível</p></div>';
+                if (!Array.isArray(notas) || notas.length === 0) {
+                    mostrarErro('Nenhum dado disponível');
                     return;
                 }
 
@@ -153,19 +163,16 @@
                 document.getElementById('resultado').innerHTML = html;
             } catch (error) {
                 console.error('Erro:', error);
-                document.getElementById('resultado').innerHTML =
-                    '<div class="resultado-relatorio"><p>❌ Erro ao carregar dados</p></div>';
+                mostrarErro(error.message || 'Erro ao carregar dados');
             }
         }
 
         async function carregarPontuacaoTotal() {
             try {
-                const response = await fetch('/api/relatorio/pontuacao-total');
-                const notas = await response.json();
+                const notas = await fetchJson('/api/relatorio/pontuacao-total');
 
-                if (notas.length === 0) {
-                    document.getElementById('resultado').innerHTML =
-                        '<div class="resultado-relatorio"><p>❌ Nenhum dado disponível</p></div>';
+                if (!Array.isArray(notas) || notas.length === 0) {
+                    mostrarErro('Nenhum dado disponível');
                     return;
                 }
 
@@ -185,19 +192,16 @@
                 document.getElementById('resultado').innerHTML = html;
             } catch (error) {
                 console.error('Erro:', error);
-                document.getElementById('resultado').innerHTML =
-                    '<div class="resultado-relatorio"><p>❌ Erro ao carregar dados</p></div>';
+                mostrarErro(error.message || 'Erro ao carregar dados');
             }
         }
 
         async function carregarEscolaVencedora() {
             try {
-                const response = await fetch('/api/relatorio/escola-vencedora');
-                const vencedora = await response.json();
+                const vencedora = await fetchJson('/api/relatorio/escola-vencedora');
 
-                if (!vencedora.nome_escola) {
-                    document.getElementById('resultado').innerHTML =
-                        '<div class="resultado-relatorio"><p>❌ Nenhum dado disponível</p></div>';
+                if (!vencedora?.nome_escola) {
+                    mostrarErro('Nenhum dado disponível');
                     return;
                 }
 
@@ -213,8 +217,7 @@
                 document.getElementById('resultado').innerHTML = html;
             } catch (error) {
                 console.error('Erro:', error);
-                document.getElementById('resultado').innerHTML =
-                    '<div class="resultado-relatorio"><p>❌ Erro ao carregar dados</p></div>';
+                mostrarErro(error.message || 'Erro ao carregar dados');
             }
         }
 
